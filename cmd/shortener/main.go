@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	srv := server.NewServer()
+	srv := server.ShortenerRouter()
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}
