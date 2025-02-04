@@ -3,10 +3,10 @@ package config
 import (
 	"flag"
 	"log"
-	// "os"
+	"os"
 
 	"github.com/caarlos0/env/v6"
-	// "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 )
 
 type AppConfig struct {
@@ -27,17 +27,17 @@ func LoadConfig() (*AppConfig, error) {
 
 	flag.Parse()
 
-	// err = godotenv.Load()
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
+	err = godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
-	// if envServiceURL := os.Getenv("SERVER_ADDRESS"); envServiceURL != "" {
-	// 	cfg.ServiceURL = envServiceURL
-	// }
-	// if envBaseShortenerURL := os.Getenv("BASE_URL"); envBaseShortenerURL != "" {
-	// 	cfg.BaseShortenerURL = envBaseShortenerURL
-	// }
+	if envServiceURL := os.Getenv("SERVER_ADDRESS"); envServiceURL != "" {
+		cfg.ServiceURL = envServiceURL
+	}
+	if envBaseShortenerURL := os.Getenv("BASE_URL"); envBaseShortenerURL != "" {
+		cfg.BaseShortenerURL = envBaseShortenerURL
+	}
 
 	return cfg, nil
 }
