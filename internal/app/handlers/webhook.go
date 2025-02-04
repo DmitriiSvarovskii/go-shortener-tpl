@@ -5,16 +5,18 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/services"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
 	service *services.RandomService
+	cfg     *config.AppConfig
 }
 
-func NewHandler(service *services.RandomService) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *services.RandomService, cfg *config.AppConfig) *Handler {
+	return &Handler{service: service, cfg: cfg}
 }
 
 func (h *Handler) CreateShortURLHandler(rw http.ResponseWriter, r *http.Request) {
@@ -24,8 +26,11 @@ func (h *Handler) CreateShortURLHandler(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 	key := h.service.GenerateShortURL(string(body))
+
+	fullURL := fmt.Sprintf("%s/%s", h.cfg.BaseShortenerURL, key)
+
 	rw.WriteHeader(http.StatusCreated)
-	rw.Write([]byte("http://localhost:8080/" + key))
+	rw.Write([]byte(fullURL))
 }
 
 func (h *Handler) GetOriginalURLHandler(rw http.ResponseWriter, r *http.Request) {
@@ -49,7 +54,6 @@ func (h *Handler) GetOriginalURLHandler(rw http.ResponseWriter, r *http.Request)
 
 	rw.Header().Set("Location", value)
 	rw.WriteHeader(http.StatusTemporaryRedirect)
-	fmt.Println("Response Status Code:", http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) MethodNotAllowedHandle(rw http.ResponseWriter, r *http.Request) {
