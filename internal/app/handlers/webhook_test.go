@@ -96,6 +96,7 @@ func TestHandlers(t *testing.T) {
 		defer resp.Body.Close()
 	})
 
+	
 	t.Run("Invalid method PUT", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPut, "http://localhost:8888/", nil)
 		resp, err := client.Do(req)

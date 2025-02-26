@@ -10,7 +10,7 @@ import (
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	srv := server.ShortenerRouter(cfg)
 	if err := srv.Run(); err != nil {
