@@ -1,74 +1,107 @@
 package handlers
 
 import (
-	"io"
+	"fmt"
+	"log"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/services"
-
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 )
 
 type MockStorage struct {
-    data map[string]string
+	data map[string]string
 }
 
 func NewMockStorage() *MockStorage {
-    return &MockStorage{data: make(map[string]string)}
+	return &MockStorage{data: make(map[string]string)}
 }
 
 func (m *MockStorage) Get(key string) (string, bool) {
-    val, ok := m.data[key]
-    return val, ok
+	val, ok := m.data[key]
+	return val, ok
 }
 
 func (m *MockStorage) Set(key, url string) {
-    m.data[key] = url
+	fmt.Printf("Saving: %s -> %s\n", key, url)
+	m.data[key] = url
 }
 
-func TestWebhook(t *testing.T) {
-	mockRepo := NewMockStorage() // Используем реальное in-memory хранилище
-	service := services.NewRandomService(mockRepo)
-	handler := NewHandler(service)
+// Запуск реального HTTP-сервера на 8888
+func startRealServer() *http.Server {
+	repo := NewMockStorage()
+	service := services.NewRandomService(repo)
+	cfg := &config.AppConfig{
+		ServiceURL:       "http://localhost:8888",
+		BaseShortenerURL: "http://localhost:8888",
+	}
+	handler := NewHandler(service, cfg)
 
-	// Создаем тестовый URL заранее, чтобы использовать в GET-запросах
+	r := chi.NewRouter()
+	r.Post("/", handler.CreateShortURLHandler)
+	r.Get("/{shortURL}", handler.GetOriginalURLHandler)
+	r.MethodNotAllowed(handler.MethodNotAllowedHandle)
+
+	srv := &http.Server{Addr: "localhost:8888", Handler: r}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// Даем серверу немного времени на запуск
+	time.Sleep(500 * time.Millisecond)
+
+	return srv
+}
+
+func TestHandlers(t *testing.T) {
+	// Запускаем реальный сервер
+	server := startRealServer()
+	defer server.Close()
+
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // Отключаем авто-редирект
+		},
+	}
+	
 	testURL := "https://example.com"
-	shortKey := service.GenerateShortURL(testURL)
+	resp, err := http.Post("http://localhost:8888/", "text/plain", strings.NewReader(testURL))
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	defer resp.Body.Close()
 
-	testCases := []struct {
-		name         string
-		method       string
-		body         string
-		url          string
-		expectedCode int
-		expectBody   bool
-	}{
-		{"POST valid URL", http.MethodPost, testURL, "/", http.StatusCreated, true},
-		{"GET existing short URL", http.MethodGet, "", "/" + shortKey, http.StatusTemporaryRedirect, false},
-		{"GET non-existing short URL", http.MethodGet, "", "/notExist", http.StatusBadRequest, false},
-		{"Invalid method PUT", http.MethodPut, "", "/", http.StatusBadRequest, false},
-		{"Invalid method DELETE", http.MethodDelete, "", "/", http.StatusBadRequest, false},
-	}
+	var shortPath string
+	_, err = fmt.Fscanf(resp.Body, "%s", &shortPath)
+	assert.NoError(t, err)
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(tc.method, tc.url, strings.NewReader(tc.body))
-			w := httptest.NewRecorder()
+	t.Run("GET existing short URL", func(t *testing.T) {
+		resp, err := client.Get(shortPath)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+		defer resp.Body.Close()
+	})
 
-			handler.Webhook(w, req)
+	t.Run("GET non-existing short URL", func(t *testing.T) {
+		resp, err := client.Get("http://localhost:8888/notExist")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		defer resp.Body.Close()
+	})
 
-			resp := w.Result()
-			defer resp.Body.Close()
-
-			assert.Equal(t, tc.expectedCode, resp.StatusCode, "Код ответа не совпадает с ожидаемым")
-
-			if tc.expectBody {
-				body, _ := io.ReadAll(resp.Body)
-				assert.Contains(t, string(body), "http://localhost:8080/", "Ответ не содержит короткий URL")
-			}
-		})
-	}
+	
+	t.Run("Invalid method PUT", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPut, "http://localhost:8888/", nil)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
+		defer resp.Body.Close()
+	})
 }
