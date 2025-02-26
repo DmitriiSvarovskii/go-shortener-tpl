@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/logger"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/server"
 )
 
@@ -12,6 +13,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	
+	if err := logger.Initialize(cfg.LogLevel); err != nil {
+		log.Fatal(err)
+	}
+
 	srv := server.ShortenerRouter(cfg)
 	if err := srv.Run(); err != nil {
 		log.Fatal(err)
