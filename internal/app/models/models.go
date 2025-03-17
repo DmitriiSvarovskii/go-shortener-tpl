@@ -1,9 +1,5 @@
 package models
 
-const (
-	TypeSimpleUtterance = "SimpleUtterance"
-)
-
 type Request struct {
 	Url string `json:"url"`
 }
