@@ -1,15 +1,20 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/models"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/services"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +37,6 @@ func (m *MockStorage) Set(key, url string) {
 	m.data[key] = url
 }
 
-// Запуск реального HTTP-сервера на 8888
 func startRealServer() *http.Server {
 	repo := NewMockStorage()
 	service := services.NewRandomService(repo)
@@ -45,6 +49,7 @@ func startRealServer() *http.Server {
 	r := chi.NewRouter()
 	r.Post("/", handler.CreateShortURLHandler)
 	r.Get("/{shortURL}", handler.GetOriginalURLHandler)
+	r.Post("/api/shorten", handler.CreateJSONShortURLHandler)
 	r.MethodNotAllowed(handler.MethodNotAllowedHandle)
 
 	srv := &http.Server{Addr: "localhost:8888", Handler: r}
@@ -55,7 +60,6 @@ func startRealServer() *http.Server {
 		}
 	}()
 
-	// Даем серверу немного времени на запуск
 	time.Sleep(500 * time.Millisecond)
 
 	return srv
@@ -68,10 +72,10 @@ func TestHandlers(t *testing.T) {
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse // Отключаем авто-редирект
+			return http.ErrUseLastResponse
 		},
 	}
-	
+
 	testURL := "https://example.com"
 	resp, err := http.Post("http://localhost:8888/", "text/plain", strings.NewReader(testURL))
 	assert.NoError(t, err)
@@ -96,12 +100,30 @@ func TestHandlers(t *testing.T) {
 		defer resp.Body.Close()
 	})
 
-	
 	t.Run("Invalid method PUT", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPut, "http://localhost:8888/", nil)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
 		defer resp.Body.Close()
+	})
+
+	t.Run("POST JSON to /api/shorten", func(t *testing.T) {
+		requestBody := models.Request{URL: "https://example.com"}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req, err := http.NewRequest("POST", "http://localhost:8888/api/shorten", bytes.NewBuffer(bodyBytes))
+		assert.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		server.Handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusCreated, rr.Code)
+
+		var resp models.Response
+		err = json.Unmarshal(rr.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Contains(t, resp.Result, "http://localhost:8888/")
 	})
 }

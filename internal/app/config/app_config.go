@@ -11,6 +11,7 @@ import (
 type AppConfig struct {
 	ServiceURL       string
 	BaseShortenerURL string
+	LogLevel         string
 }
 
 func LoadConfig() (*AppConfig, error) {
@@ -23,19 +24,19 @@ func LoadConfig() (*AppConfig, error) {
 	// Флаги для конфигурации
 	flag.StringVar(&cfg.ServiceURL, "a", "localhost:8080", "Адрес запуска HTTP-сервера (в формате host:port)")
 	flag.StringVar(&cfg.BaseShortenerURL, "b", "http://localhost:8080", "Базовый адрес сокращённых URL")
+	flag.StringVar(&cfg.LogLevel, "l", "info", "log level")
 
 	flag.Parse()
-
-	// err = godotenv.Load()
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
 
 	if envServiceURL := os.Getenv("SERVER_ADDRESS"); envServiceURL != "" {
 		cfg.ServiceURL = envServiceURL
 	}
 	if envBaseShortenerURL := os.Getenv("BASE_URL"); envBaseShortenerURL != "" {
 		cfg.BaseShortenerURL = envBaseShortenerURL
+	}
+
+	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
+		cfg.LogLevel = envLogLevel
 	}
 
 	return cfg, nil
