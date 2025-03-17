@@ -31,6 +31,7 @@ func ShortenerRouter(cfg *config.AppConfig) *Server {
 
 	r.Post("/", handler.CreateShortURLHandler)
 	r.Get("/{shortURL}", handler.GetOriginalURLHandler)
+	r.Post("/api/shorten", handler.CreateJSONShortURLHandler)
 	r.MethodNotAllowed(handler.MethodNotAllowedHandle)
 
 	return &Server{

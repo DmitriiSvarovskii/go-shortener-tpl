@@ -1,12 +1,17 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/logger"
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/models"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/services"
+	"go.uber.org/zap"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -31,6 +36,32 @@ func (h *Handler) CreateShortURLHandler(rw http.ResponseWriter, r *http.Request)
 
 	rw.WriteHeader(http.StatusCreated)
 	rw.Write([]byte(fullURL))
+}
+
+func (h *Handler) CreateJSONShortURLHandler(rw http.ResponseWriter, r *http.Request) {
+	var req models.Request
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	key := h.service.GenerateShortURL(req.Url)
+	fullURL := fmt.Sprintf("%s/%s", h.cfg.BaseShortenerURL, key)
+
+	resp := models.Response{
+		Result: fullURL,
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusCreated)
+
+	enc := json.NewEncoder(rw)
+	if err := enc.Encode(resp); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		return
+	}
+	logger.Log.Debug("sending HTTP 201 response")
 }
 
 func (h *Handler) GetOriginalURLHandler(rw http.ResponseWriter, r *http.Request) {
