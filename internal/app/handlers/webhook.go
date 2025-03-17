@@ -46,7 +46,7 @@ func (h *Handler) CreateJSONShortURLHandler(rw http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	key := h.service.GenerateShortURL(req.Url)
+	key := h.service.GenerateShortURL(req.URL)
 	fullURL := fmt.Sprintf("%s/%s", h.cfg.BaseShortenerURL, key)
 
 	resp := models.Response{

@@ -109,7 +109,7 @@ func TestHandlers(t *testing.T) {
 	})
 
 	t.Run("POST JSON to /api/shorten", func(t *testing.T) {
-		requestBody := models.Request{Url: "https://example.com"}
+		requestBody := models.Request{URL: "https://example.com"}
 		bodyBytes, _ := json.Marshal(requestBody)
 
 		req, err := http.NewRequest("POST", "http://localhost:8888/api/shorten", bytes.NewBuffer(bodyBytes))
