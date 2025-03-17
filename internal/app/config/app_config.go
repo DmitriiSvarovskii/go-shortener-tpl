@@ -28,11 +28,6 @@ func LoadConfig() (*AppConfig, error) {
 
 	flag.Parse()
 
-	// err = godotenv.Load()
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
-
 	if envServiceURL := os.Getenv("SERVER_ADDRESS"); envServiceURL != "" {
 		cfg.ServiceURL = envServiceURL
 	}
