@@ -1,6 +1,6 @@
 module github.com/DmitriiSvarovskii/go-shortener-tpl.git
 
-go 1.22.11
+go 1.23.0
 
 require github.com/stretchr/testify v1.10.0
 
