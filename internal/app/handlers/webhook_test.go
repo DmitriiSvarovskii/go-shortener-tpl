@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/compression"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/services"
 
@@ -43,6 +44,9 @@ func startRealServer() *http.Server {
 	handler := NewHandler(service, cfg)
 
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return compression.GzipMiddleware(next.ServeHTTP)
+	})
 	r.Post("/", handler.CreateShortURLHandler)
 	r.Get("/{shortURL}", handler.GetOriginalURLHandler)
 	r.Post("/api/shorten", handler.CreateJSONShortURLHandler)
