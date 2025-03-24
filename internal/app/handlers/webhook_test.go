@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/compression"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/services"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +34,6 @@ func (m *MockStorage) Set(key, url string) {
 	m.data[key] = url
 }
 
-// Запуск реального HTTP-сервера на 8888
 func startRealServer() *http.Server {
 	repo := NewMockStorage()
 	service := services.NewRandomService(repo)
@@ -43,8 +44,12 @@ func startRealServer() *http.Server {
 	handler := NewHandler(service, cfg)
 
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return compression.GzipMiddleware(next.ServeHTTP)
+	})
 	r.Post("/", handler.CreateShortURLHandler)
 	r.Get("/{shortURL}", handler.GetOriginalURLHandler)
+	r.Post("/api/shorten", handler.CreateJSONShortURLHandler)
 	r.MethodNotAllowed(handler.MethodNotAllowedHandle)
 
 	srv := &http.Server{Addr: "localhost:8888", Handler: r}
@@ -55,7 +60,6 @@ func startRealServer() *http.Server {
 		}
 	}()
 
-	// Даем серверу немного времени на запуск
 	time.Sleep(500 * time.Millisecond)
 
 	return srv
@@ -68,10 +72,10 @@ func TestHandlers(t *testing.T) {
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse // Отключаем авто-редирект
+			return http.ErrUseLastResponse
 		},
 	}
-	
+
 	testURL := "https://example.com"
 	resp, err := http.Post("http://localhost:8888/", "text/plain", strings.NewReader(testURL))
 	assert.NoError(t, err)
@@ -96,7 +100,6 @@ func TestHandlers(t *testing.T) {
 		defer resp.Body.Close()
 	})
 
-	
 	t.Run("Invalid method PUT", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPut, "http://localhost:8888/", nil)
 		resp, err := client.Do(req)
@@ -104,4 +107,5 @@ func TestHandlers(t *testing.T) {
 		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
 		defer resp.Body.Close()
 	})
+
 }
