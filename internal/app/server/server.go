@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/compression"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/handlers"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/logger"
@@ -22,7 +23,10 @@ func ShortenerRouter(cfg *config.AppConfig) *Server {
 	handler := handlers.NewHandler(service, cfg)
 
 	r := chi.NewRouter()
-
+	r.Use()
+	r.Use(func(next http.Handler) http.Handler {
+		return compression.GzipMiddleware(next.ServeHTTP)
+	})
 	r.Use(func(next http.Handler) http.Handler {
 		return logger.RequestLogger(next.ServeHTTP)
 	})

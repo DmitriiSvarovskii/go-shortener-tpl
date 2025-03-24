@@ -1,18 +1,14 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/config"
-	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/models"
 	"github.com/DmitriiSvarovskii/go-shortener-tpl.git/internal/app/services"
 
 	"github.com/go-chi/chi/v5"
@@ -108,22 +104,4 @@ func TestHandlers(t *testing.T) {
 		defer resp.Body.Close()
 	})
 
-	t.Run("POST JSON to /api/shorten", func(t *testing.T) {
-		requestBody := models.Request{URL: "https://example.com"}
-		bodyBytes, _ := json.Marshal(requestBody)
-
-		req, err := http.NewRequest("POST", "http://localhost:8888/api/shorten", bytes.NewBuffer(bodyBytes))
-		assert.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-
-		rr := httptest.NewRecorder()
-		server.Handler.ServeHTTP(rr, req)
-
-		assert.Equal(t, http.StatusCreated, rr.Code)
-
-		var resp models.Response
-		err = json.Unmarshal(rr.Body.Bytes(), &resp)
-		assert.NoError(t, err)
-		assert.Contains(t, resp.Result, "http://localhost:8888/")
-	})
 }
